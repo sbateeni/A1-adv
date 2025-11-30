@@ -288,9 +288,30 @@ export async function extractInheritanceFromCase(caseText: string): Promise<Part
         const jsonText = response.text;
         if (!jsonText) throw new Error("No JSON returned");
         
+        
         return JSON.parse(jsonText);
     } catch (error) {
         console.error("Inheritance Extraction Error:", error);
         throw error;
+    }
+}
+
+export async function generateEmbedding(text: string): Promise<number[]> {
+    if (!text) return [];
+    try {
+        const ai = await getGoogleGenAI();
+        const model = "text-embedding-004";
+        const result = await ai.models.embedContent({
+            model: model,
+            content: { parts: [{ text }] }
+        });
+
+        // Increment Request Count (1 request)
+        dbService.incrementTokenUsage(1);
+
+        return result.embedding?.values || [];
+    } catch (error) {
+        console.error("Error generating embedding:", error);
+        return [];
     }
 }

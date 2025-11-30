@@ -1,5 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { generateEmbedding } from '../pages/geminiService';
 
 // Interface for a Law Chunk
 export interface LawChunk {
@@ -27,6 +28,12 @@ export const getSupabaseClient = () => supabase;
 export async function storeLawChunk(chunk: LawChunk): Promise<boolean> {
     if (!supabase) return false;
 
+    // Generate embedding if missing
+    if (!chunk.embedding) {
+        console.log("Generating embedding for chunk...");
+        chunk.embedding = await generateEmbedding(chunk.content);
+    }
+
     const { error } = await supabase
         .from('law_chunks')
         .insert({
@@ -43,8 +50,11 @@ export async function storeLawChunk(chunk: LawChunk): Promise<boolean> {
 }
 
 // 2. Search for relevant laws (The Memory)
-export async function searchKnowledgeBase(queryEmbedding: number[], threshold = 0.7, limit = 5): Promise<LawChunk[]> {
+export async function searchKnowledgeBase(query: string, threshold = 0.7, limit = 5): Promise<LawChunk[]> {
     if (!supabase) return [];
+
+    const queryEmbedding = await generateEmbedding(query);
+    if (!queryEmbedding || queryEmbedding.length === 0) return [];
 
     // RPC call to a postgres function 'match_law_chunks'
     const { data, error } = await supabase
