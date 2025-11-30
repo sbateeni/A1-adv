@@ -7,12 +7,12 @@ import { DEFAULT_OPENROUTER_MODELS } from '../constants';
 export const useSettingsLogic = () => {
     const [apiSource, setApiSource] = useState<ApiSource>('gemini');
     const [region, setRegion] = useState<LegalRegion>('westbank'); // Default to West Bank
-    
+
     // Gemini states
     const [geminiApiKey, setGeminiApiKey] = useState('');
     const [geminiInputValue, setGeminiInputValue] = useState('');
     const [geminiSaved, setGeminiSaved] = useState(false);
-    
+
     // OpenRouter states
     const [openRouterApiKey, setOpenRouterApiKey] = useState('');
     const [openRouterModelId, setOpenRouterModelId] = useState<string>(DEFAULT_OPENROUTER_MODELS[0].id);
@@ -21,7 +21,16 @@ export const useSettingsLogic = () => {
     const [openRouterModels, setOpenRouterModels] = useState<OpenRouterModel[]>(DEFAULT_OPENROUTER_MODELS);
     const [newModelId, setNewModelId] = useState('');
     const [newModelSupportsImages, setNewModelSupportsImages] = useState(false);
-    
+
+    // Google Search & Supabase (Hybrid RAG)
+    const [googleSearchApiKey, setGoogleSearchApiKey] = useState('');
+    const [googleSearchCx, setGoogleSearchCx] = useState('');
+    const [googleSearchSaved, setGoogleSearchSaved] = useState(false);
+
+    const [supabaseUrl, setSupabaseUrl] = useState('');
+    const [supabaseKey, setSupabaseKey] = useState('');
+    const [supabaseSaved, setSupabaseSaved] = useState(false);
+
     // Data stats
     const [casesCount, setCasesCount] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -39,11 +48,11 @@ export const useSettingsLogic = () => {
                 setGeminiApiKey(storedGeminiKey);
                 setGeminiInputValue(storedGeminiKey);
             }
-            
+
             const storedOpenRouterKey = await dbService.getSetting<string>('openRouterApiKey');
             const storedModelId = await dbService.getSetting<string>('openRouterModel');
             const storedCustomModels = await dbService.getSetting<OpenRouterModel[]>('openRouterModels');
-            
+
             const availableModels = storedCustomModels && storedCustomModels.length > 0 ? storedCustomModels : DEFAULT_OPENROUTER_MODELS;
             setOpenRouterModels(availableModels);
 
@@ -57,6 +66,19 @@ export const useSettingsLogic = () => {
                 setOpenRouterApiKey(storedOpenRouterKey);
                 setOpenRouterInputValue(storedOpenRouterKey);
             }
+
+            // Load Hybrid RAG Settings
+            const storedGoogleKey = await dbService.getSetting<string>('googleSearchApiKey');
+            if (storedGoogleKey) setGoogleSearchApiKey(storedGoogleKey);
+
+            const storedGoogleCx = await dbService.getSetting<string>('googleSearchCx');
+            if (storedGoogleCx) setGoogleSearchCx(storedGoogleCx);
+
+            const storedSupabaseUrl = await dbService.getSetting<string>('supabaseUrl');
+            if (storedSupabaseUrl) setSupabaseUrl(storedSupabaseUrl);
+
+            const storedSupabaseKey = await dbService.getSetting<string>('supabaseKey');
+            if (storedSupabaseKey) setSupabaseKey(storedSupabaseKey);
 
             const allCases = await dbService.getAllCases();
             setCasesCount(allCases.length);
@@ -87,6 +109,20 @@ export const useSettingsLogic = () => {
         setOpenRouterInputValue(cleanKey); // Update input to show cleaned value
         setOpenRouterSaved(true);
         setTimeout(() => setOpenRouterSaved(false), 3000);
+    };
+
+    const handleSaveSearchSettings = async () => {
+        await dbService.setSetting({ key: 'googleSearchApiKey', value: googleSearchApiKey.trim() });
+        await dbService.setSetting({ key: 'googleSearchCx', value: googleSearchCx.trim() });
+        setGoogleSearchSaved(true);
+        setTimeout(() => setGoogleSearchSaved(false), 3000);
+    };
+
+    const handleSaveSupabaseSettings = async () => {
+        await dbService.setSetting({ key: 'supabaseUrl', value: supabaseUrl.trim() });
+        await dbService.setSetting({ key: 'supabaseKey', value: supabaseKey.trim() });
+        setSupabaseSaved(true);
+        setTimeout(() => setSupabaseSaved(false), 3000);
     };
 
     const handleApiSourceChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -194,6 +230,8 @@ export const useSettingsLogic = () => {
         openRouterApiKey, openRouterInputValue, setOpenRouterInputValue, handleSaveOpenRouterKey, openRouterSaved,
         openRouterModels, openRouterModelId, handleModelChange,
         newModelId, setNewModelId, newModelSupportsImages, setNewModelSupportsImages, handleAddModel, handleDeleteModel,
-        casesCount, handleClearCases, handleExport, handleImportClick, handleFileChange, fileInputRef
+        casesCount, handleClearCases, handleExport, handleImportClick, handleFileChange, fileInputRef,
+        googleSearchApiKey, setGoogleSearchApiKey, googleSearchCx, setGoogleSearchCx, handleSaveSearchSettings, googleSearchSaved,
+        supabaseUrl, setSupabaseUrl, supabaseKey, setSupabaseKey, handleSaveSupabaseSettings, supabaseSaved
     };
 };

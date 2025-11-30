@@ -7,6 +7,7 @@ import * as dbService from '../services/dbService';
 import { streamChatResponseFromGemini, countTokensForGemini, proofreadTextWithGemini, summarizeChatHistory } from '../pages/geminiService';
 import { streamChatResponseFromOpenRouter } from '../services/openRouterService';
 import { DEFAULT_OPENROUTER_MODELS } from '../constants';
+import { performHybridSearch } from '../services/hybridSearchOrchestrator';
 import * as pdfjsLib from 'pdfjs-dist';
 import Tesseract from 'tesseract.js';
 
@@ -16,13 +17,13 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(!!caseId);
     const [isNotFound, setIsNotFound] = useState(false);
-    
+
     const [caseData, setCaseData] = useState<Case | null>(null);
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [userInput, setUserInput] = useState('');
     const [isApiKeyReady, setIsApiKeyReady] = useState<boolean | null>(null);
     const [apiSource, setApiSource] = useState<ApiSource>('gemini');
-    const [region, setRegion] = useState<LegalRegion>('westbank'); 
+    const [region, setRegion] = useState<LegalRegion>('westbank');
     const [openRouterApiKey, setOpenRouterApiKey] = useState<string>('');
     const [openRouterModel, setOpenRouterModel] = useState<string>(DEFAULT_OPENROUTER_MODELS[0].id);
     const [openRouterModels, setOpenRouterModels] = useState<OpenRouterModel[]>(DEFAULT_OPENROUTER_MODELS);
@@ -41,7 +42,7 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-    
+
     const isNewCase = !caseId;
 
     useEffect(() => {
@@ -53,7 +54,7 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
 
             setIsLoading(true);
             setIsNotFound(false);
-            
+
             try {
                 const storedApiSource = await dbService.getSetting<ApiSource>('apiSource');
                 if (storedApiSource) setApiSource(storedApiSource);
@@ -85,7 +86,7 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
                     const hasStoredKey = !!storedGeminiKey && storedGeminiKey.trim().length > 0;
                     const hasEnvKey = !!process.env.API_KEY && process.env.API_KEY.trim().length > 0;
                     let hasAiStudioKey = false;
-                    try { if (window.aistudio) hasAiStudioKey = await window.aistudio.hasSelectedApiKey(); } catch {}
+                    try { if (window.aistudio) hasAiStudioKey = await window.aistudio.hasSelectedApiKey(); } catch { }
                     setIsApiKeyReady(hasStoredKey || hasEnvKey || hasAiStudioKey);
                 }
 
@@ -125,7 +126,7 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
                     const storedGeminiKey = await dbService.getSetting<string>('geminiApiKey');
                     const hasEnvKey = !!process.env.API_KEY;
                     let hasAiStudioKey = false;
-                    try { if (window.aistudio) hasAiStudioKey = await window.aistudio.hasSelectedApiKey(); } catch {}
+                    try { if (window.aistudio) hasAiStudioKey = await window.aistudio.hasSelectedApiKey(); } catch { }
                     setIsApiKeyReady(!!storedGeminiKey || hasEnvKey || hasAiStudioKey);
                 } else {
                     const storedOpenRouterKey = await dbService.getSetting<string>('openRouterApiKey');
@@ -173,7 +174,7 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
     // New Function to handle case type conversion (Redirect)
     const handleConvertCaseType = async (newType: string) => {
         if (!caseData) return;
-        
+
         // Normalize type (fix potential AI hallucination 'civil' -> 'chat')
         const normalizedType: CaseType = newType === 'civil' ? 'chat' : (newType as CaseType);
 
@@ -194,10 +195,10 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
             };
             await dbService.updateCase(updatedCase);
             setCaseData(updatedCase); // Update local state immediately
-            
+
             // Navigate to the correct route based on the new type
             const routePrefix = normalizedType === 'sharia' ? '/sharia' : '/case';
-            
+
             // Force navigation with hard reload logic to ensure hooks reset properly
             // We use replace to swap the history entry
             navigate(`${routePrefix}/${caseData.id}`, { replace: true });
@@ -247,12 +248,12 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
             setIsProcessingFile(true);
             setProcessingMessage('جاري تهيئة محرك استخلاص النصوص...');
             Tesseract.recognize(file, 'ara', { logger: m => { if (m.status === 'recognizing text') setProcessingMessage(`جاري استخلاص النص... ${Math.round(m.progress * 100)}%`); } })
-            .then(async ({ data: { text } }) => {
-                if (!text.trim()) return;
-                setProcessingMessage('جاري تدقيق النص...');
-                const correctedText = await proofreadTextWithGemini(text);
-                setUserInput(prev => prev.trim() + (prev.trim() ? '\n\n' : '') + `--- نص مستخلص من صورة: ${file.name} ---\n` + correctedText.trim());
-            }).finally(() => { setIsProcessingFile(false); setProcessingMessage(''); });
+                .then(async ({ data: { text } }) => {
+                    if (!text.trim()) return;
+                    setProcessingMessage('جاري تدقيق النص...');
+                    const correctedText = await proofreadTextWithGemini(text);
+                    setUserInput(prev => prev.trim() + (prev.trim() ? '\n\n' : '') + `--- نص مستخلص من صورة: ${file.name} ---\n` + correctedText.trim());
+                }).finally(() => { setIsProcessingFile(false); setProcessingMessage(''); });
         } else if (file.type === 'application/pdf') {
             setIsProcessingFile(true);
             setProcessingMessage('جاري معالجة PDF...');
@@ -301,11 +302,25 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
         }
         return { fullResponse, responseModel, groundingMetadata };
     }, []);
-
     const handleSendMessage = async (prompt?: string) => {
         setAuthError(null);
-        const messageContent = (prompt || userInput).trim();
+        let messageContent = (prompt || userInput).trim();
         if (isLoading || isProcessingFile || (!messageContent && !uploadedImage)) return;
+
+        // --- HYBRID SEARCH INJECTION ---
+        // Only search if we are in analysis/research mode and have text
+        if (messageContent && (actionMode === 'analysis' || actionMode === 'sharia_advisor')) {
+            try {
+                const searchContext = await performHybridSearch(messageContent);
+                if (searchContext) {
+                    console.log("Injected Context:", searchContext);
+                    messageContent += searchContext.text;
+                }
+            } catch (err) {
+                console.error("Hybrid Search Error:", err);
+            }
+        }
+        // -------------------------------
 
         setIsLoading(true);
         const userMessage: ChatMessage = { id: uuidv4(), role: 'user', content: messageContent, images: uploadedImage ? [uploadedImage] : undefined };
@@ -367,7 +382,7 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
             finalResponseText = fullResponse;
             finalModelName = responseModel;
             finalMetadata = groundingMetadata;
-            
+
             if (apiSource === 'gemini') countTokensForGemini([...historyToSend, { ...tempModelMessage, content: fullResponse }]).then(setTokenCount);
 
         } catch (error: any) {

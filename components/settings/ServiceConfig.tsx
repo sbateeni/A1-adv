@@ -22,6 +22,19 @@ interface ServiceConfigProps {
     setNewModelSupportsImages: (val: boolean) => void;
     handleAddModel: () => void;
     handleDeleteModel: (id: string) => void;
+    // Hybrid RAG Props
+    googleSearchApiKey: string;
+    setGoogleSearchApiKey: (val: string) => void;
+    googleSearchCx: string;
+    setGoogleSearchCx: (val: string) => void;
+    handleSaveSearchSettings: () => void;
+    googleSearchSaved: boolean;
+    supabaseUrl: string;
+    setSupabaseUrl: (val: string) => void;
+    supabaseKey: string;
+    setSupabaseKey: (val: string) => void;
+    handleSaveSupabaseSettings: () => void;
+    supabaseSaved: boolean;
 }
 
 const ServiceConfig: React.FC<ServiceConfigProps> = ({
@@ -29,7 +42,9 @@ const ServiceConfig: React.FC<ServiceConfigProps> = ({
     geminiInputValue, setGeminiInputValue, handleSaveGeminiKey, geminiSaved,
     openRouterInputValue, setOpenRouterInputValue, handleSaveOpenRouterKey, openRouterSaved,
     openRouterModelId, handleModelChange, openRouterModels,
-    newModelId, setNewModelId, newModelSupportsImages, setNewModelSupportsImages, handleAddModel, handleDeleteModel
+    newModelId, setNewModelId, newModelSupportsImages, setNewModelSupportsImages, handleAddModel, handleDeleteModel,
+    googleSearchApiKey, setGoogleSearchApiKey, googleSearchCx, setGoogleSearchCx, handleSaveSearchSettings, googleSearchSaved,
+    supabaseUrl, setSupabaseUrl, supabaseKey, setSupabaseKey, handleSaveSupabaseSettings, supabaseSaved
 }) => {
     return (
         <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
@@ -49,9 +64,9 @@ const ServiceConfig: React.FC<ServiceConfigProps> = ({
                     <div className="mb-4">
                         <div className="flex justify-between items-end mb-2">
                             <label htmlFor="gemini-api-key" className="block text-lg font-medium text-gray-200">Google Gemini API Key</label>
-                            <a 
-                                href="https://aistudio.google.com/app/apikey" 
-                                target="_blank" 
+                            <a
+                                href="https://aistudio.google.com/app/apikey"
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="px-3 py-1 text-xs font-medium bg-blue-900/30 text-blue-300 border border-blue-500/30 rounded hover:bg-blue-900/50 hover:text-blue-200 transition-colors flex items-center shadow-sm"
                             >
@@ -74,10 +89,10 @@ const ServiceConfig: React.FC<ServiceConfigProps> = ({
                     <h3 className="text-xl font-semibold text-gray-200 mb-2">إعدادات OpenRouter</h3>
                     <div className="mb-6">
                         <div className="flex justify-between items-end mb-2">
-                             <label htmlFor="openrouter-api-key" className="block text-lg font-medium text-gray-200">OpenRouter API Key</label>
-                             <a 
-                                href="https://openrouter.ai/keys" 
-                                target="_blank" 
+                            <label htmlFor="openrouter-api-key" className="block text-lg font-medium text-gray-200">OpenRouter API Key</label>
+                            <a
+                                href="https://openrouter.ai/keys"
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="px-3 py-1 text-xs font-medium bg-indigo-900/30 text-indigo-300 border border-indigo-500/30 rounded hover:bg-indigo-900/50 hover:text-indigo-200 transition-colors flex items-center shadow-sm"
                             >
@@ -125,6 +140,49 @@ const ServiceConfig: React.FC<ServiceConfigProps> = ({
                     </div>
                 </div>
             )}
+
+            {/* Google Search & Supabase Config (Hybrid RAG) */}
+            <div className="border-t border-gray-700 pt-6 mt-6">
+                <h3 className="text-xl font-semibold text-gray-200 mb-4">إعدادات البحث المتقدم (Hybrid RAG)</h3>
+
+                {/* Google Search */}
+                <div className="mb-6 bg-gray-900/30 p-4 rounded-lg border border-gray-700">
+                    <h4 className="text-lg font-medium text-blue-300 mb-3">1. محرك البحث (Google Programmable Search)</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">Search API Key</label>
+                            <input type="password" value={googleSearchApiKey} onChange={(e) => setGoogleSearchApiKey(e.target.value)} className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:ring-blue-500 focus:outline-none" placeholder="AIzaSy..." />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">Search Engine ID (CX)</label>
+                            <input type="text" value={googleSearchCx} onChange={(e) => setGoogleSearchCx(e.target.value)} className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:ring-blue-500 focus:outline-none" placeholder="0123456789..." />
+                        </div>
+                    </div>
+                    <div className="flex justify-end">
+                        {googleSearchSaved && <span className="text-green-400 me-3 text-sm self-center">تم الحفظ!</span>}
+                        <button onClick={handleSaveSearchSettings} className="px-4 py-1.5 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded transition-colors">حفظ إعدادات البحث</button>
+                    </div>
+                </div>
+
+                {/* Supabase */}
+                <div className="bg-gray-900/30 p-4 rounded-lg border border-gray-700">
+                    <h4 className="text-lg font-medium text-green-300 mb-3">2. قاعدة المعرفة (Supabase Vector DB)</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">Supabase Project URL</label>
+                            <input type="text" value={supabaseUrl} onChange={(e) => setSupabaseUrl(e.target.value)} className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:ring-blue-500 focus:outline-none" placeholder="https://xyz.supabase.co" />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">Supabase Anon Key</label>
+                            <input type="password" value={supabaseKey} onChange={(e) => setSupabaseKey(e.target.value)} className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:ring-blue-500 focus:outline-none" placeholder="eyJhbGci..." />
+                        </div>
+                    </div>
+                    <div className="flex justify-end">
+                        {supabaseSaved && <span className="text-green-400 me-3 text-sm self-center">تم الحفظ!</span>}
+                        <button onClick={handleSaveSupabaseSettings} className="px-4 py-1.5 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded transition-colors">حفظ إعدادات Supabase</button>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
