@@ -64,7 +64,7 @@ export interface OpenRouterModel {
 // Define the allowed Legal Action Modes
 // Added Sharia modes: sharia_advisor, reconciliation, custody, alimony
 export type ActionMode = 
-    | 'analysis' | 'loopholes' | 'drafting' | 'strategy' | 'research' | 'interrogator' | 'verifier'
+    | 'analysis' | 'loopholes' | 'drafting' | 'strategy' | 'research' | 'interrogator' | 'verifier' | 'citation_builder' | 'registrar'
     | 'sharia_advisor' | 'reconciliation' | 'custody' | 'alimony';
 
 // --- OCR & Analysis Types ---

@@ -3,6 +3,7 @@ import { searchWeb, storeKnowledgeChunk, searchKnowledgeChunks } from './backend
 import { fetchFullContent } from './jinaReaderService';
 import { generateEmbedding } from '../pages/geminiService';
 import * as dbService from './dbService';
+import { buildOfficialSiteFilter } from './sources';
 
 export interface SearchResult {
     title: string;
@@ -48,8 +49,10 @@ export async function performHybridSearch(query: string): Promise<HybridContext 
             return allSources.length > 0 ? formatContext(allSources) : null;
         }
 
+        // Rewrite query to force official Palestinian sources
+        const rewrittenQuery = `${query} ${buildOfficialSiteFilter()}`.trim();
         // Search via backend using Gemini Grounding (FREE!)
-        const webResults = await searchWeb(query, geminiApiKey);
+        const webResults = await searchWeb(rewrittenQuery, geminiApiKey);
 
         if (webResults.length > 0) {
             // Deduplicate by URL

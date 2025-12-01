@@ -1,5 +1,6 @@
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { OFFICIAL_PALESTINIAN_DOMAINS, BLACKLISTED_DOMAINS, sourcePriority } from '../config/sources.js';
 
 const router = express.Router();
 
@@ -22,6 +23,8 @@ router.post('/', async (req, res) => {
         }
 
         console.log('🔍 Searching with Gemini Grounding (Palestinian sources only):', query);
+
+        // Strict Palestinian official sources policy: rely on Birzeit/DFTP/etc. only
 
         const genAI = new GoogleGenerativeAI(geminiApiKey);
         const model = genAI.getGenerativeModel({
@@ -67,20 +70,8 @@ router.post('/', async (req, res) => {
         let results = [];
 
         if (groundingMetadata?.groundingChunks) {
-            // Palestinian domains whitelist
-            const palestinianDomains = [
-                'birzeit.edu', 'dftp.gov.ps', 'courts.gov.ps',
-                'moj.pna.ps', 'pgp.ps', 'palestinebar.ps',
-                'maqam.najah.edu', 'darifta.ps', 'qou.edu',
-                '.ps'
-            ];
-
-            // Blacklist
-            const blacklistedDomains = [
-                '.jo', '.eg', '.qa', '.sa',
-                'aliftaa.jo', 'islamweb.net', 'islamway.net',
-                'mawdoo3.com', 'wikipedia.org'
-            ];
+            const palestinianDomains = OFFICIAL_PALESTINIAN_DOMAINS;
+            const blacklistedDomains = BLACKLISTED_DOMAINS;
 
             results = groundingMetadata.groundingChunks
                 .filter(chunk => {
@@ -106,7 +97,7 @@ router.post('/', async (req, res) => {
                     link: chunk.web.uri,
                     snippet: text.substring(0, 300),
                     source: new URL(chunk.web.uri).hostname
-                }));
+                })).sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source));
 
             console.log(`✅ Found ${results.length} Palestinian sources via Gemini Grounding`);
         } else {
@@ -122,7 +113,7 @@ router.post('/', async (req, res) => {
                     link: url,
                     snippet: text.substring(0, 300),
                     source: new URL(url).hostname
-                }));
+                })).sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source));
         }
 
         res.json({ results, geminiResponse: text });

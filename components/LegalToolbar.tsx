@@ -57,6 +57,20 @@ export const ACTION_MODES: { id: ActionMode; label: string; icon: React.ReactNod
         description: 'تكتيكات عملية، تفاوض، وماذا تفعل',
         icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" /></svg>,
         color: 'bg-amber-600 hover:bg-amber-500',
+    },
+    {
+        id: 'citation_builder',
+        label: 'مراجع حرفية',
+        description: 'إرجاع نصوص المواد القانونية مع رابط المصدر فقط',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V9.414a2 2 0 00-.586-1.414L10.586 3.586A2 2 0 009.172 3H4z" /><path d="M8 3v4a2 2 0 002 2h4" /></svg>,
+        color: 'bg-fuchsia-600 hover:bg-fuchsia-500',
+    },
+    {
+        id: 'registrar',
+        label: 'التسجيل العقاري',
+        description: 'إجراءات التسوية والتسجيل والوثائق والرسوم',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V8.414a2 2 0 00-.586-1.414L11.586 3.586A2 2 0 0010.172 3H6zm3 7a1 1 0 100 2h5a1 1 0 100-2H9z" clipRule="evenodd" /></svg>,
+        color: 'bg-teal-600 hover:bg-teal-500',
     }
 ];
 
