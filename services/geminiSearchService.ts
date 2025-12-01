@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, DynamicRetrievalMode } from '@google/generative-ai';
 
 /**
  * Search using Gemini with Google Search Grounding
@@ -12,7 +12,12 @@ export async function searchWithGemini(query: string, geminiApiKey: string): Pro
         const model = genAI.getGenerativeModel({
             model: "gemini-2.5-flash", // Using Gemini 2.5 Flash
             tools: [{
-                googleSearch: {}  // Enable Google Search grounding
+                googleSearchRetrieval: {
+                    dynamicRetrievalConfig: {
+                        mode: DynamicRetrievalMode.MODE_DYNAMIC,
+                        dynamicThreshold: 0.7,
+                    }
+                }
             }]
         });
 
