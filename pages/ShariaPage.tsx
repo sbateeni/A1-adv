@@ -83,6 +83,16 @@ const ShariaPage: React.FC<ShariaPageProps> = ({ caseId }) => {
             disabled={logic.isLoading || logic.isProcessingFile || !logic.isApiKeyReady}
         />
 
+        <div className="flex items-center gap-2 mt-3">
+            <button
+                onClick={logic.handleRunWorkflow}
+                disabled={logic.isLoading || !logic.isApiKeyReady}
+                className="px-3 py-1.5 bg-purple-700 text-gray-100 rounded-md text-sm hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+                تشغيل سلسلة
+            </button>
+        </div>
+
         <div className="flex items-center space-x-reverse space-x-2">
             <input type="file" ref={logic.fileInputRef} onChange={logic.handleFileChange} accept="image/*,application/pdf" className="hidden" />
             <button onClick={() => logic.fileInputRef.current?.click()} disabled={logic.isLoading || !logic.isApiKeyReady} className="p-3 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 disabled:opacity-50 transition-colors">
