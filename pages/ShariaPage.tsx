@@ -70,18 +70,19 @@ const ShariaPage: React.FC<ShariaPageProps> = ({ caseId }) => {
 
     return (
         <div className="w-full flex flex-col flex-grow bg-gray-800 overflow-hidden">
-            <ChatHeader
-                caseData={logic.caseData}
-                apiSource={logic.apiSource}
-                tokenCount={logic.tokenCount}
-                isLoading={logic.isLoading}
-                isSummaryLoading={logic.isSummaryLoading}
-                chatHistoryLength={logic.chatHistory.length}
-                thinkingMode={logic.thinkingMode}
-                setThinkingMode={logic.setThinkingMode}
-                onSummarize={logic.handleSummarize}
-                onRunWorkflow={(chain) => logic.handleRunWorkflow(chain)}
-            />
+        <ChatHeader
+            caseData={logic.caseData}
+            apiSource={logic.apiSource}
+            tokenCount={logic.tokenCount}
+            isLoading={logic.isLoading}
+            isSummaryLoading={logic.isSummaryLoading}
+            chatHistoryLength={logic.chatHistory.length}
+            thinkingMode={logic.thinkingMode}
+            setThinkingMode={logic.setThinkingMode}
+            onSummarize={logic.handleSummarize}
+            onRunWorkflow={(chain) => logic.handleRunWorkflow(chain)}
+            accentClass="border-t-4 border-emerald-600/30"
+        />
 
             <PinnedPanel
                 messages={logic.pinnedMessages}

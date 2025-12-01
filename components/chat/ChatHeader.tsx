@@ -13,6 +13,7 @@ interface ChatHeaderProps {
     setThinkingMode: (value: boolean) => void;
     onSummarize: () => void;
     onRunWorkflow: (chain?: ActionMode[]) => void;
+    accentClass?: string;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -25,7 +26,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     thinkingMode,
     setThinkingMode,
     onSummarize,
-    onRunWorkflow
+    onRunWorkflow,
+    accentClass
 }) => {
     const defaultChain: ActionMode[] = (caseData?.caseType === 'sharia')
         ? ['interrogator','research','citation_builder','verifier','drafting','strategy']
@@ -41,7 +43,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         analysis: 'تحليل', loopholes: 'كشف الثغرات', drafting: 'الصائغ القانوني', strategy: 'المايسترو الاستراتيجي', research: 'المحقق', interrogator: 'المستجوب', verifier: 'المدقق', citation_builder: 'مراجع حرفية', registrar: 'التسجيل العقاري', sharia_advisor: 'المرشد الشرعي', reconciliation: 'الصلح', custody: 'الحضانة', alimony: 'النفقة'
     };
     return (
-        <div className="p-3 border-b border-gray-700 bg-gray-800/50 flex justify-between items-center flex-wrap gap-2 sticky top-0 z-10 backdrop-blur-md">
+        <div className={`p-3 border-b border-gray-700 bg-gray-800/50 flex justify-between items-center flex-wrap gap-2 sticky top-0 z-10 backdrop-blur-md ${accentClass || ''}`}>
             <h2 className="text-lg font-semibold text-gray-200 truncate">{caseData?.title || 'قضية جديدة'}</h2>
             <div className="flex items-center gap-x-3">
                 {apiSource === 'gemini' && tokenCount > 0 && (
