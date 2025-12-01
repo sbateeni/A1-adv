@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 /**
  * Backend API Service
  * Communicates with the Node.js backend for shared resources

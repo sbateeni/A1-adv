@@ -149,7 +149,7 @@ export async function* streamChatResponseFromGemini(
 ): AsyncGenerator<{ text: string; model: string; groundingMetadata?: GroundingMetadata }> {
     try {
         const ai = await getGoogleGenAI();
-        const model = thinkingMode ? 'gemini-3-pro-preview' : 'gemini-2.5-flash';
+        const model = thinkingMode ? 'gemini-2.5-flash' : 'gemini-2.5-flash';
         // Retrieve centralized instruction
         const systemInstruction = getInstruction(actionMode, region, caseType);
 

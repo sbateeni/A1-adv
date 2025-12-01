@@ -10,7 +10,7 @@ export async function searchWithGemini(query: string, geminiApiKey: string): Pro
 
         const genAI = new GoogleGenerativeAI(geminiApiKey);
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash-exp",
+            model: "gemini-2.5-flash", // Using Gemini 2.5 Flash
             tools: [{
                 googleSearch: {}  // Enable Google Search grounding
             }]
