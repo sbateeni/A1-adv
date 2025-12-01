@@ -412,6 +412,52 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
 
     const handleStopGenerating = () => abortControllerRef.current?.abort();
 
+    const handleRunWorkflow = async () => {
+        if (isLoading) return;
+        setIsLoading(true);
+        try {
+            const currentCaseType = caseData?.caseType || initialCaseType;
+            const chain: ActionMode[] = currentCaseType === 'sharia'
+                ? ['interrogator','research','citation_builder','verifier','drafting','strategy']
+                : ['interrogator','research','citation_builder','verifier','drafting','strategy'];
+
+            let workingCase = caseData;
+            let workingHistory = [...chatHistory];
+
+            for (const mode of chain) {
+                const tempMsg: ChatMessage = { id: uuidv4(), role: 'model', content: `جاري تنفيذ وضع: ${mode}` };
+                workingHistory = [...workingHistory, tempMsg];
+                setChatHistory(workingHistory);
+                if (workingCase) {
+                    const updatedCase = { ...workingCase, chatHistory: workingHistory };
+                    await dbService.updateCase(updatedCase);
+                    workingCase = updatedCase;
+                }
+
+                abortControllerRef.current = new AbortController();
+                let stream;
+                if (apiSource === 'openrouter') {
+                    stream = streamChatResponseFromOpenRouter(openRouterApiKey, workingHistory.slice(0, -1), openRouterModel, mode, region, currentCaseType, abortControllerRef.current.signal);
+                } else {
+                    stream = streamChatResponseFromGemini(workingHistory.slice(0, -1), thinkingMode, mode, region, currentCaseType, abortControllerRef.current.signal);
+                }
+                const { fullResponse, responseModel, groundingMetadata } = await processStream(stream, tempMsg.id);
+                workingHistory = workingHistory.map(m => m.id === tempMsg.id ? { ...m, content: `نتائج وضع: ${mode}\n\n${fullResponse}`, model: responseModel, groundingMetadata } : m);
+                setChatHistory(workingHistory);
+                if (workingCase) {
+                    const updatedCase = { ...workingCase, chatHistory: workingHistory, summary: fullResponse.substring(0, 150) };
+                    await dbService.updateCase(updatedCase);
+                    workingCase = updatedCase;
+                }
+            }
+        } catch (e) {
+            console.error('Workflow error', e);
+        } finally {
+            setIsLoading(false);
+            abortControllerRef.current = null;
+        }
+    };
+
     return {
         caseData, chatHistory, userInput, setUserInput, isLoading, isNotFound, isApiKeyReady,
         apiSource, thinkingMode, setThinkingMode, uploadedImage, setUploadedImage,
@@ -419,6 +465,7 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
         actionMode, setActionMode, pinnedMessages, isSummaryLoading,
         isPinnedPanelOpen, setIsPinnedPanelOpen, chatContainerRef, fileInputRef, textareaRef,
         handleSendMessage, handleStopGenerating, handleSummarize, handleSelectApiKey,
-        handleFileChange, handlePinMessage, handleUnpinMessage, handleConvertCaseType
+        handleFileChange, handlePinMessage, handleUnpinMessage, handleConvertCaseType,
+        handleRunWorkflow
     };
 };

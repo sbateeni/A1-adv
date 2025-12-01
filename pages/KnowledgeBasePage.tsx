@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllKnowledgeChunks, deleteKnowledgeChunk } from '../services/backendApi';
+import { sourcePriority, getHost } from '../services/sources';
+import * as dbService from '../services/dbService';
+import { Case, ChatMessage } from '../types';
 
 interface LawChunk {
     id?: string;
@@ -21,9 +24,12 @@ export const KnowledgeBasePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [selectedChunk, setSelectedChunk] = useState<LawChunk | null>(null);
+    const [cases, setCases] = useState<Case[]>([]);
+    const [selectedCaseId, setSelectedCaseId] = useState<string>('');
 
     useEffect(() => {
         loadChunks();
+        loadCases();
     }, []);
 
     useEffect(() => {
@@ -46,6 +52,12 @@ export const KnowledgeBasePage: React.FC = () => {
         setIsLoading(false);
     };
 
+    const loadCases = async () => {
+        const allCases = await dbService.getAllCases();
+        setCases(allCases);
+        if (allCases.length > 0 && !selectedCaseId) setSelectedCaseId(allCases[0].id);
+    };
+
     const handleDelete = async (id: string) => {
         if (window.confirm('هل أنت متأكد من حذف هذا المحتوى؟')) {
             const success = await deleteKnowledgeChunk(id);
@@ -54,6 +66,22 @@ export const KnowledgeBasePage: React.FC = () => {
                 setSelectedChunk(null);
             }
         }
+    };
+
+    const handleSendToCase = async (chunk: LawChunk) => {
+        if (!selectedCaseId) { alert('يرجى اختيار قضية أولاً'); return; }
+        const caseItem = await dbService.getCase(selectedCaseId);
+        if (!caseItem) { alert('القضية غير موجودة'); return; }
+
+        const message: ChatMessage = {
+            id: crypto.randomUUID(),
+            role: 'user',
+            content: `نص موثّق من قاعدة المعرفة:\n\n${chunk.content}\n\nالمصدر: ${chunk.metadata.law_name} — ${chunk.metadata.source_url}`,
+        };
+
+        const updated: Case = { ...caseItem, chatHistory: [...(caseItem.chatHistory || []), message] };
+        await dbService.updateCase(updated);
+        alert('تم إرسال المحتوى إلى القضية بنجاح');
     };
 
     const formatDate = (dateString: string) => {
@@ -133,9 +161,11 @@ export const KnowledgeBasePage: React.FC = () => {
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex-1">
                                         <h2 className="text-2xl font-bold mb-2">{selectedChunk.metadata.law_name}</h2>
-                                        <div className="flex gap-4 text-sm text-gray-400">
+                                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                                             <span>📅 {formatDate(selectedChunk.metadata.date_fetched)}</span>
-                                            <span>🔗 <a href={selectedChunk.metadata.source_url} target="_blank" rel="noopener noreferrer" className="hover:text-purple-400">{new URL(selectedChunk.metadata.source_url).hostname}</a></span>
+                                            <span>🔗 <a href={selectedChunk.metadata.source_url} target="_blank" rel="noopener noreferrer" className="hover:text-purple-400">{getHost(selectedChunk.metadata.source_url)}</a></span>
+                                            <span className="px-2 py-1 rounded bg-white/10 border border-white/20">أولوية المصدر: {sourcePriority(getHost(selectedChunk.metadata.source_url))}</span>
+                                            <span className="px-2 py-1 rounded bg-white/10 border border-white/20">{selectedChunk.metadata.content_type === 'full' ? '📄 محتوى كامل' : '📝 مقتطف'}</span>
                                         </div>
                                     </div>
                                     <button
@@ -144,6 +174,12 @@ export const KnowledgeBasePage: React.FC = () => {
                                     >
                                         🗑️ حذف
                                     </button>
+                                </div>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <select value={selectedCaseId} onChange={(e) => setSelectedCaseId(e.target.value)} className="bg-white/10 border border-white/20 rounded px-3 py-2 text-sm">
+                                        {cases.map(c => (<option key={c.id} value={c.id}>{c.title}</option>))}
+                                    </select>
+                                    <button onClick={() => handleSendToCase(selectedChunk)} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">إرسال إلى القضية</button>
                                 </div>
                                 <div className="bg-black/20 rounded-lg p-6 max-h-[60vh] overflow-y-auto">
                                     <pre className="whitespace-pre-wrap text-sm leading-relaxed">

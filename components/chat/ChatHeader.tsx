@@ -12,6 +12,7 @@ interface ChatHeaderProps {
     thinkingMode: boolean;
     setThinkingMode: (value: boolean) => void;
     onSummarize: () => void;
+    onRunWorkflow: () => void;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -23,7 +24,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     chatHistoryLength,
     thinkingMode,
     setThinkingMode,
-    onSummarize
+    onSummarize,
+    onRunWorkflow
 }) => {
     return (
         <div className="p-3 border-b border-gray-700 bg-gray-800/50 flex justify-between items-center flex-wrap gap-2 sticky top-0 z-10 backdrop-blur-md">
@@ -60,6 +62,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                         </button>
                     </div>
                 )}
+                <button
+                    onClick={onRunWorkflow}
+                    disabled={isLoading}
+                    className="flex items-center space-x-2 space-x-reverse px-3 py-1.5 bg-purple-700 text-gray-100 rounded-md text-sm hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="تشغيل سلسلة الأوضاع"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 4.5A1.5 1.5 0 014.5 3h11a1.5 1.5 0 011.5 1.5v11a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 013 15.5v-11zm5.707 2.793a1 1 0 00-1.414 1.414L9.586 11 7.293 13.293a1 1 0 001.414 1.414L11 12.414l2.293 2.293a1 1 0 001.414-1.414L12.414 11l2.293-2.293a1 1 0 00-1.414-1.414L11 9.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                    <span>تشغيل سلسلة</span>
+                </button>
             </div>
         </div>
     );

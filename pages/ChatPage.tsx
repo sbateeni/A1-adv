@@ -42,6 +42,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ caseId }) => {
         handleSendMessage,
         handleStopGenerating,
         handleSummarize,
+        handleRunWorkflow,
         handleSelectApiKey,
         handleFileChange,
         handlePinMessage,
@@ -117,6 +118,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ caseId }) => {
                 thinkingMode={thinkingMode}
                 setThinkingMode={setThinkingMode}
                 onSummarize={handleSummarize}
+                onRunWorkflow={handleRunWorkflow}
             />
 
             <PinnedPanel
