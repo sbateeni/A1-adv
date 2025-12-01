@@ -412,14 +412,15 @@ export const useChatLogic = (caseId?: string, initialCaseType: CaseType = 'chat'
 
     const handleStopGenerating = () => abortControllerRef.current?.abort();
 
-    const handleRunWorkflow = async () => {
+    const handleRunWorkflow = async (customChain?: ActionMode[]) => {
         if (isLoading) return;
         setIsLoading(true);
         try {
             const currentCaseType = caseData?.caseType || initialCaseType;
-            const chain: ActionMode[] = currentCaseType === 'sharia'
+            const defaultChain: ActionMode[] = currentCaseType === 'sharia'
                 ? ['interrogator','research','citation_builder','verifier','drafting','strategy']
                 : ['interrogator','research','citation_builder','verifier','drafting','strategy'];
+            const chain: ActionMode[] = (customChain && customChain.length > 0) ? customChain : defaultChain;
 
             let workingCase = caseData;
             let workingHistory = [...chatHistory];
