@@ -16,7 +16,7 @@ const ShariaPage: React.FC<ShariaPageProps> = ({ caseId }) => {
     const navigate = useNavigate();
     // Pass 'sharia' as the intended case type
     const logic = useChatLogic(caseId, 'sharia');
-    
+
     // Set default mode to sharia_advisor when mounting this page
     useEffect(() => {
         if (logic.actionMode === 'analysis') {
@@ -72,14 +72,14 @@ const ShariaPage: React.FC<ShariaPageProps> = ({ caseId }) => {
     // Custom Input Component Wrapper to replace LegalToolbar with ShariaToolbar
     const ShariaChatInput = () => (
         <div className="p-4 border-t border-gray-700 bg-gray-800 border-t-4 border-emerald-600/20">
-             {!logic.isApiKeyReady && (
+            {!logic.isApiKeyReady && (
                 <div className="mb-3 p-3 bg-yellow-600/20 border border-yellow-500/50 text-yellow-200 rounded-lg text-sm flex items-center justify-between">
                     <span>وضع القراءة فقط: يجب إدخال مفتاح API لمتابعة الاستشارة.</span>
                     <Link to="/settings" className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded transition-colors text-xs font-bold">الإعدادات</Link>
                 </div>
             )}
 
-            <ShariaToolbar 
+            <ShariaToolbar
                 currentMode={logic.actionMode}
                 onModeChange={logic.setActionMode}
                 disabled={logic.isLoading || logic.isProcessingFile || !logic.isApiKeyReady}
@@ -93,7 +93,14 @@ const ShariaPage: React.FC<ShariaPageProps> = ({ caseId }) => {
                 <textarea
                     ref={logic.textareaRef}
                     value={logic.userInput}
-                    onChange={(e) => { logic.setUserInput(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${e.target.scrollHeight}px`; }}
+                    onChange={(e) => {
+                        const target = e.target;
+                        logic.setUserInput(target.value);
+                        requestAnimationFrame(() => {
+                            target.style.height = 'auto';
+                            target.style.height = `${target.scrollHeight}px`;
+                        });
+                    }}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); logic.handleSendMessage(); } }}
                     className="flex-grow p-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none disabled:opacity-50"
                     placeholder={!logic.isApiKeyReady ? "أدخل المفتاح..." : "اكتب سؤالك الشرعي، أو صف الحالة العائلية..."}
@@ -118,7 +125,7 @@ const ShariaPage: React.FC<ShariaPageProps> = ({ caseId }) => {
                 </div>
                 {/* Reuse controls from ChatHeader logic */}
                 <div className="flex items-center gap-x-3">
-                     {logic.apiSource === 'gemini' && (
+                    {logic.apiSource === 'gemini' && (
                         <div className="flex items-center space-x-2 space-x-reverse bg-gray-900/50 p-1 rounded-full">
                             <label className="text-xs font-medium text-gray-300 px-2">تفكير عميق</label>
                             <button onClick={() => logic.setThinkingMode(!logic.thinkingMode)} className={`${logic.thinkingMode ? 'bg-emerald-600' : 'bg-gray-600'} relative inline-flex h-5 w-9 items-center rounded-full transition-colors`}>
