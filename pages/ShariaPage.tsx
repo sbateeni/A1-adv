@@ -6,7 +6,6 @@ import ChatHeader from '../components/chat/ChatHeader';
 import PinnedPanel from '../components/chat/PinnedPanel';
 import MessageList from '../components/chat/MessageList';
 import ChatInput from '../components/chat/ChatInput';
-import ShariaToolbar from '../components/ShariaToolbar';
 
 interface ShariaPageProps {
     caseId?: string;
@@ -70,64 +69,57 @@ const ShariaPage: React.FC<ShariaPageProps> = ({ caseId }) => {
     }
 
     return (
-    <div className="w-full flex flex-col flex-grow bg-gray-800 overflow-hidden">
-        <ChatHeader
-            caseData={logic.caseData}
-            apiSource={logic.apiSource}
-            tokenCount={logic.tokenCount}
-            isLoading={logic.isLoading}
-            isSummaryLoading={logic.isSummaryLoading}
-            chatHistoryLength={logic.chatHistory.length}
-            thinkingMode={logic.thinkingMode}
-            setThinkingMode={logic.setThinkingMode}
-            onSummarize={logic.handleSummarize}
-            onRunWorkflow={(chain) => logic.handleRunWorkflow(chain)}
-        />
-
-        <div className="p-4 border-t border-gray-700 bg-gray-800 border-t-4 border-emerald-600/20">
-        {!logic.isApiKeyReady && (
-            <div className="mb-3 p-3 bg-yellow-600/20 border border-yellow-500/50 text-yellow-200 rounded-lg text-sm flex items-center justify-between">
-                <span>وضع القراءة فقط: يجب إدخال مفتاح API لمتابعة الاستشارة.</span>
-                <Link to="/settings" className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded transition-colors text-xs font-bold">الإعدادات</Link>
-            </div>
-        )}
-
-        <ShariaToolbar
-            currentMode={logic.actionMode}
-            onModeChange={logic.setActionMode}
-            disabled={logic.isLoading || logic.isProcessingFile || !logic.isApiKeyReady}
-        />
-
-        <div className="flex items-center space-x-reverse space-x-2">
-            <input type="file" ref={logic.fileInputRef} onChange={logic.handleFileChange} accept="image/*,application/pdf" className="hidden" />
-            <button onClick={() => logic.fileInputRef.current?.click()} disabled={logic.isLoading || !logic.isApiKeyReady} className="p-3 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 disabled:opacity-50 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-            </button>
-            <textarea
-                ref={logic.textareaRef}
-                value={logic.userInput}
-                onChange={(e) => {
-                    const target = e.target;
-                    logic.setUserInput(target.value);
-                    // Use requestAnimationFrame to avoid layout thrashing and ensure state update is processed
-                    requestAnimationFrame(() => {
-                        target.style.height = 'auto';
-                        target.style.height = `${target.scrollHeight}px`;
-                    });
-                }}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); logic.handleSendMessage(); } }}
-                className="flex-grow p-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none disabled:opacity-50"
-                placeholder={!logic.isApiKeyReady ? "أدخل المفتاح..." : "اكتب سؤالك الشرعي، أو صف الحالة العائلية..."}
-                rows={1}
-                style={{ maxHeight: '10rem' }}
-                disabled={logic.isLoading || !logic.isApiKeyReady}
+        <div className="w-full flex flex-col flex-grow bg-gray-800 overflow-hidden">
+            <ChatHeader
+                caseData={logic.caseData}
+                apiSource={logic.apiSource}
+                tokenCount={logic.tokenCount}
+                isLoading={logic.isLoading}
+                isSummaryLoading={logic.isSummaryLoading}
+                chatHistoryLength={logic.chatHistory.length}
+                thinkingMode={logic.thinkingMode}
+                setThinkingMode={logic.setThinkingMode}
+                onSummarize={logic.handleSummarize}
+                onRunWorkflow={(chain) => logic.handleRunWorkflow(chain)}
             />
-            <button onClick={() => logic.handleSendMessage()} disabled={logic.isLoading || !logic.userInput.trim() || !logic.isApiKeyReady} className="p-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 disabled:bg-gray-500 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-            </button>
+
+            <PinnedPanel
+                messages={logic.pinnedMessages}
+                isOpen={logic.isPinnedPanelOpen}
+                setIsOpen={logic.setIsPinnedPanelOpen}
+                onUnpin={logic.handleUnpinMessage}
+            />
+
+            <div ref={logic.chatContainerRef} className="flex-grow p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+                <MessageList
+                    messages={logic.chatHistory}
+                    isLoading={logic.isLoading}
+                    pinnedMessages={logic.pinnedMessages}
+                    onPinMessage={logic.handlePinMessage}
+                    onConvertCaseType={logic.handleConvertCaseType}
+                />
+            </div>
+
+            <ChatInput
+                userInput={logic.userInput}
+                setUserInput={logic.setUserInput}
+                handleSendMessage={logic.handleSendMessage}
+                handleStopGenerating={logic.handleStopGenerating}
+                handleFileChange={logic.handleFileChange}
+                fileInputRef={logic.fileInputRef}
+                textareaRef={logic.textareaRef}
+                isLoading={logic.isLoading}
+                isProcessingFile={logic.isProcessingFile}
+                uploadedImage={logic.uploadedImage}
+                setUploadedImage={logic.setUploadedImage}
+                processingMessage={logic.processingMessage}
+                authError={logic.authError}
+                actionMode={logic.actionMode}
+                setActionMode={logic.setActionMode}
+                chatHistoryLength={logic.chatHistory.length}
+                isApiKeyReady={logic.isApiKeyReady}
+            />
         </div>
-        </div>
-    </div>
     );
 };
 
