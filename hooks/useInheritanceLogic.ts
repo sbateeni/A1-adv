@@ -6,6 +6,7 @@ import { Case, InheritanceInput, InheritanceResult, HeirResult, ApiSource } from
 import * as dbService from '../services/dbService';
 import { extractInheritanceFromCase } from '../pages/geminiService';
 import { extractInheritanceFromCaseWithOpenRouter } from '../services/openRouterService';
+import { calculateInheritance } from '../services/inheritanceEngine';
 
 const DEFAULT_INPUT: InheritanceInput = {
     religion: 'muslim',
@@ -71,7 +72,7 @@ export const useInheritanceLogic = () => {
 
     const handleExtractFromCase = async () => {
         if (!selectedCaseId) return;
-        
+
         const caseData = cases.find(c => c.id === selectedCaseId);
         if (!caseData) return;
 
@@ -81,7 +82,7 @@ export const useInheritanceLogic = () => {
         try {
             // Construct full text from summary + history
             const fullText = `${caseData.summary}\n${caseData.chatHistory.map(m => m.content).join('\n')}`;
-            
+
             const apiSource = await dbService.getSetting<ApiSource>('apiSource') || 'gemini';
             let extractedData: Partial<InheritanceInput>;
 
@@ -114,9 +115,9 @@ export const useInheritanceLogic = () => {
     // Helper to distribute names like "Ahmed, Ali" into an array ["Ahmed", "Ali"]
     const distributeHeirs = (count: number, typeLabel: string, namesStr?: string): { name: string }[] => {
         if (count <= 0) return [];
-        
-        const extractedNames = namesStr 
-            ? namesStr.split(/,|،| و /).map(n => n.trim()).filter(n => n) 
+
+        const extractedNames = namesStr
+            ? namesStr.split(/,|،| و /).map(n => n.trim()).filter(n => n)
             : [];
 
         return Array.from({ length: count }).map((_, index) => ({
@@ -124,212 +125,139 @@ export const useInheritanceLogic = () => {
         }));
     };
 
-    // --- Islamic Math Engine ---
+    // --- Islamic Math Engine (Powered by inheritanceEngine.ts) ---
     const calculateIslamic = (inp: InheritanceInput): InheritanceResult => {
-        const heirs: HeirResult[] = [];
-        let totalShares = 24; // Base denominator
-        let usedShares = 0;
-        const estate = inp.estateValue;
+        // 1. Map Input to Engine Input
+        const engineInput = {
+            husband: inp.husband,
+            wife: inp.wife,
+            son: inp.son,
+            daughter: inp.daughter,
+            father: inp.father,
+            mother: inp.mother,
+            fullBrother: inp.brotherFull,
+            fullSister: inp.sisterFull,
+            // Add others if/when supported in UI
+        };
 
-        // 1. Spouses
-        if (inp.husband > 0) {
-            const share = (inp.son > 0 || inp.daughter > 0) ? 6 : 12;
-            heirs.push({
-                type: 'الزوج', 
-                name: inp.husbandName || 'الزوج',
-                count: 1,
-                shareFraction: (share === 6 ? '1/4' : '1/2'),
-                sharePercentage: (share/24)*100,
-                amount: 0 
-            });
-            usedShares += share;
-        } else if (inp.wife > 0) {
-            const share = (inp.son > 0 || inp.daughter > 0) ? 3 : 6;
-            const individuals = distributeHeirs(inp.wife, 'الزوجة', inp.wifeName);
-            // Wives share the fraction collectively
-            const sharePerWife = share / inp.wife;
-            
-            individuals.forEach(ind => {
-                heirs.push({
-                    type: 'الزوجة',
-                    name: ind.name,
+        // 2. Run Calculation
+        const engineResult = calculateInheritance(engineInput, inp.estateValue);
+
+        // 3. Map Engine Results to UI Results (Expanding names)
+        const uiHeirs: HeirResult[] = [];
+
+        engineResult.results.forEach(res => {
+            // Determine names string based on heir type
+            let namesStr = '';
+            if (res.heir === 'الزوج') namesStr = inp.husbandName;
+            else if (res.heir === 'الزوجة') namesStr = inp.wifeName;
+            else if (res.heir === 'الابن') namesStr = inp.sonNames;
+            else if (res.heir === 'البنت') namesStr = inp.daughterNames;
+            else if (res.heir === 'الأب') namesStr = inp.fatherName;
+            else if (res.heir === 'الأم') namesStr = inp.motherName;
+            // For brothers/sisters, we might need to add name fields to UI later, 
+            // for now they are generic or we can add them if they exist in input types
+
+            if (res.count > 1) {
+                // Expand
+                const individuals = distributeHeirs(res.count, res.heir, namesStr);
+                const amountPerPerson = res.amount / res.count;
+                const percentPerPerson = res.sharePercentage / res.count;
+
+                individuals.forEach(ind => {
+                    uiHeirs.push({
+                        type: res.heir,
+                        name: ind.name,
+                        count: 1,
+                        shareFraction: res.shareFraction, // Keep the fraction description
+                        sharePercentage: percentPerPerson,
+                        amount: amountPerPerson
+                    });
+                });
+            } else {
+                // Single
+                uiHeirs.push({
+                    type: res.heir,
+                    name: namesStr || res.heir,
                     count: 1,
-                    shareFraction: (share === 3 ? '1/8' : '1/4') + (inp.wife > 1 ? ' (مشترك)' : ''),
-                    sharePercentage: (sharePerWife/24)*100,
-                    amount: 0
+                    shareFraction: res.shareFraction,
+                    sharePercentage: res.sharePercentage,
+                    amount: res.amount
                 });
-            });
-            usedShares += share;
-        }
-
-        // 2. Parents
-        if (inp.father > 0) {
-            if (inp.son > 0 || inp.daughter > 0) {
-                heirs.push({ 
-                    type: 'الأب', 
-                    name: inp.fatherName || 'الأب',
-                    count: 1, 
-                    shareFraction: '1/6', 
-                    sharePercentage: (4/24)*100, 
-                    amount: 0 
-                });
-                usedShares += 4;
             }
-        }
-        if (inp.mother > 0) {
-            const siblingsCount = inp.brotherFull + inp.sisterFull;
-            const hasKids = inp.son > 0 || inp.daughter > 0;
-            const share = (hasKids || siblingsCount > 1) ? 4 : 8;
-            heirs.push({
-                type: 'الأم', 
-                name: inp.motherName || 'الأم',
-                count: 1,
-                shareFraction: (share === 4 ? '1/6' : '1/3'),
-                sharePercentage: (share/24)*100,
-                amount: 0
-            });
-            usedShares += share;
-        }
-
-        // 3. Residue (Children & Father if no kids)
-        const remainingShares = Math.max(0, totalShares - usedShares);
-        
-        if (inp.father > 0 && inp.son === 0 && inp.daughter === 0) {
-             heirs.push({ 
-                 type: 'الأب (عصبة)', 
-                 name: inp.fatherName || 'الأب',
-                 count: 1, 
-                 shareFraction: 'الباقي', 
-                 sharePercentage: (remainingShares/24)*100, 
-                 amount: 0 
-            });
-        }
-        else if (inp.son > 0 || inp.daughter > 0) {
-            const totalUnits = (inp.son * 2) + inp.daughter;
-            const unitValue = remainingShares / totalUnits; 
-            
-            // Unroll Sons
-            const sons = distributeHeirs(inp.son, 'الابن', inp.sonNames);
-            sons.forEach(s => {
-                heirs.push({ 
-                    type: 'الابن', 
-                    name: s.name,
-                    count: 1, 
-                    shareFraction: `للذكر مثل حظ الأنثيين`, 
-                    sharePercentage: ((unitValue * 2) / 24) * 100, 
-                    amount: 0 
-                });
-            });
-
-            // Unroll Daughters
-            const daughters = distributeHeirs(inp.daughter, 'البنت', inp.daughterNames);
-            daughters.forEach(d => {
-                 heirs.push({ 
-                    type: 'البنت', 
-                    name: d.name,
-                    count: 1, 
-                    shareFraction: `للذكر مثل حظ الأنثيين`, 
-                    sharePercentage: (unitValue / 24) * 100, 
-                    amount: 0 
-                });
-            });
-        }
-        else if (inp.father === 0 && inp.son === 0) {
-             if (inp.brotherFull > 0 || inp.sisterFull > 0) {
-                 // Kalala logic simplified: distribute remainder evenly/2:1 for siblings
-                 // Assume 2:1 for full siblings
-                 const totalUnits = (inp.brotherFull * 2) + inp.sisterFull;
-                 const unitValue = remainingShares / totalUnits;
-
-                 const brothers = distributeHeirs(inp.brotherFull, 'أخ شقيق');
-                 brothers.forEach(b => {
-                     heirs.push({
-                         type: 'أخ شقيق',
-                         name: b.name,
-                         count: 1,
-                         shareFraction: 'عصبة',
-                         sharePercentage: ((unitValue * 2) / 24) * 100, 
-                         amount: 0
-                     });
-                 });
-
-                 const sisters = distributeHeirs(inp.sisterFull, 'أخت شقيقة');
-                 sisters.forEach(s => {
-                     heirs.push({
-                         type: 'أخت شقيقة',
-                         name: s.name,
-                         count: 1,
-                         shareFraction: 'عصبة',
-                         sharePercentage: (unitValue / 24) * 100, 
-                         amount: 0
-                     });
-                 });
-             }
-        }
-
-        let totalCalcPercent = 0;
-        heirs.forEach(h => {
-            h.amount = (h.sharePercentage / 100) * estate;
-            totalCalcPercent += h.sharePercentage;
         });
 
+        // 4. Construct Context/Notes
+        let notes = inp.context.notes || "";
+        engineResult.results.forEach(r => {
+            if (r.notes) {
+                notes += `\n- ${r.heir}: ${r.notes}`;
+            }
+        });
+
+        if (engineResult.isAwl) notes += "\n⚠️ تنبيه: المسألة عالت (زادت السهام عن الفريضة)، فدخل النقص على الجميع بنسبة حصصهم.";
+        if (engineResult.isRadd) notes += "\nℹ️ تنبيه: المسألة فيها رد (زادت الفريضة عن السهام)، فرد الباقي على ذوي الفروض.";
+
         return {
-            totalValue: estate,
-            heirs: heirs,
-            isAwl: totalCalcPercent > 100,
-            context: inp.context
+            totalValue: inp.estateValue,
+            heirs: uiHeirs,
+            isAwl: engineResult.isAwl,
+            context: {
+                ...inp.context,
+                notes: notes
+            }
         };
     };
 
     // --- Christian Math Engine (Equal Distribution for First Degree) ---
     const calculateChristian = (inp: InheritanceInput): InheritanceResult => {
-         const heirs: HeirResult[] = [];
-         const estate = inp.estateValue;
-         let remainder = estate;
+        const heirs: HeirResult[] = [];
+        const estate = inp.estateValue;
+        let remainder = estate;
 
-         // Spouse gets 1/4
-         if (inp.husband > 0) {
-             const amount = estate * 0.25;
-             heirs.push({ type: 'الزوج', name: inp.husbandName || 'الزوج', count: 1, shareFraction: '1/4', sharePercentage: 25, amount });
-             remainder -= amount;
-         } else if (inp.wife > 0) {
-             const amount = estate * 0.25;
-             heirs.push({ type: 'الزوجة', name: inp.wifeName || 'الزوجة', count: 1, shareFraction: '1/4', sharePercentage: 25, amount });
-             remainder -= amount;
-         }
+        // Spouse gets 1/4
+        if (inp.husband > 0) {
+            const amount = estate * 0.25;
+            heirs.push({ type: 'الزوج', name: inp.husbandName || 'الزوج', count: 1, shareFraction: '1/4', sharePercentage: 25, amount });
+            remainder -= amount;
+        } else if (inp.wife > 0) {
+            const amount = estate * 0.25;
+            heirs.push({ type: 'الزوجة', name: inp.wifeName || 'الزوجة', count: 1, shareFraction: '1/4', sharePercentage: 25, amount });
+            remainder -= amount;
+        }
 
-         // Children split remainder equally (Male = Female)
-         const childrenCount = inp.son + inp.daughter;
-         if (childrenCount > 0) {
-             const amountPerChild = remainder / childrenCount;
-             const percentPerChild = (amountPerChild / estate) * 100;
-             
-             const sons = distributeHeirs(inp.son, 'الابن', inp.sonNames);
-             sons.forEach(s => {
+        // Children split remainder equally (Male = Female)
+        const childrenCount = inp.son + inp.daughter;
+        if (childrenCount > 0) {
+            const amountPerChild = remainder / childrenCount;
+            const percentPerChild = (amountPerChild / estate) * 100;
+
+            const sons = distributeHeirs(inp.son, 'الابن', inp.sonNames);
+            sons.forEach(s => {
                 heirs.push({ type: 'الابن', name: s.name, count: 1, shareFraction: 'بالتساوي', sharePercentage: percentPerChild, amount: amountPerChild });
-             });
+            });
 
-             const daughters = distributeHeirs(inp.daughter, 'البنت', inp.daughterNames);
-             daughters.forEach(d => {
+            const daughters = distributeHeirs(inp.daughter, 'البنت', inp.daughterNames);
+            daughters.forEach(d => {
                 heirs.push({ type: 'البنت', name: d.name, count: 1, shareFraction: 'بالتساوي', sharePercentage: percentPerChild, amount: amountPerChild });
-             });
+            });
 
-         } else {
-             // No children -> Parents
-             const parentsCount = inp.father + inp.mother;
-             if (parentsCount > 0) {
-                  const amountPerParent = remainder / parentsCount;
-                  const percent = (amountPerParent/estate)*100;
-                  if (inp.father > 0) heirs.push({ type: 'الأب', name: inp.fatherName || 'الأب', count: 1, shareFraction: 'بالتساوي', sharePercentage: percent, amount: amountPerParent });
-                  if (inp.mother > 0) heirs.push({ type: 'الأم', name: inp.motherName || 'الأم', count: 1, shareFraction: 'بالتساوي', sharePercentage: percent, amount: amountPerParent });
-             }
-         }
+        } else {
+            // No children -> Parents
+            const parentsCount = inp.father + inp.mother;
+            if (parentsCount > 0) {
+                const amountPerParent = remainder / parentsCount;
+                const percent = (amountPerParent / estate) * 100;
+                if (inp.father > 0) heirs.push({ type: 'الأب', name: inp.fatherName || 'الأب', count: 1, shareFraction: 'بالتساوي', sharePercentage: percent, amount: amountPerParent });
+                if (inp.mother > 0) heirs.push({ type: 'الأم', name: inp.motherName || 'الأم', count: 1, shareFraction: 'بالتساوي', sharePercentage: percent, amount: amountPerParent });
+            }
+        }
 
-         return {
-             totalValue: estate,
-             heirs,
-             context: inp.context
-         };
+        return {
+            totalValue: estate,
+            heirs,
+            context: inp.context
+        };
     };
 
     const calculate = () => {
