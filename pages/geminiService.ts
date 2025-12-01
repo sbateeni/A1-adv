@@ -235,7 +235,7 @@ export async function analyzeImageWithGemini(
 export async function extractInheritanceFromCase(caseText: string): Promise<Partial<InheritanceInput>> {
     try {
         const ai = await getGoogleGenAI();
-        const model = 'gemini-3-pro-preview';
+        const model = 'gemini-2.5-flash';
 
         // Use centralized inheritance prompt
         const prompt = getInheritanceExtractionPrompt(caseText);
