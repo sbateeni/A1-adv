@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useChatLogic } from '../hooks/useChatLogic';
 import ChatHeader from '../components/chat/ChatHeader';
@@ -7,7 +7,6 @@ import PinnedPanel from '../components/chat/PinnedPanel';
 import MessageList from '../components/chat/MessageList';
 import ChatInput from '../components/chat/ChatInput';
 import ShariaToolbar from '../components/ShariaToolbar';
-import { ActionMode } from '../types';
 
 interface ShariaPageProps {
     caseId?: string;
@@ -71,7 +70,21 @@ const ShariaPage: React.FC<ShariaPageProps> = ({ caseId }) => {
     }
 
     return (
-    <div className="p-4 border-t border-gray-700 bg-gray-800 border-t-4 border-emerald-600/20">
+    <div className="w-full flex flex-col flex-grow bg-gray-800 overflow-hidden">
+        <ChatHeader
+            caseData={logic.caseData}
+            apiSource={logic.apiSource}
+            tokenCount={logic.tokenCount}
+            isLoading={logic.isLoading}
+            isSummaryLoading={logic.isSummaryLoading}
+            chatHistoryLength={logic.chatHistory.length}
+            thinkingMode={logic.thinkingMode}
+            setThinkingMode={logic.setThinkingMode}
+            onSummarize={logic.handleSummarize}
+            onRunWorkflow={(chain) => logic.handleRunWorkflow(chain)}
+        />
+
+        <div className="p-4 border-t border-gray-700 bg-gray-800 border-t-4 border-emerald-600/20">
         {!logic.isApiKeyReady && (
             <div className="mb-3 p-3 bg-yellow-600/20 border border-yellow-500/50 text-yellow-200 rounded-lg text-sm flex items-center justify-between">
                 <span>وضع القراءة فقط: يجب إدخال مفتاح API لمتابعة الاستشارة.</span>
@@ -84,8 +97,6 @@ const ShariaPage: React.FC<ShariaPageProps> = ({ caseId }) => {
             onModeChange={logic.setActionMode}
             disabled={logic.isLoading || logic.isProcessingFile || !logic.isApiKeyReady}
         />
-
-        <CustomChainPanel onRun={(chain) => logic.handleRunWorkflow(chain)} disabled={logic.isLoading || !logic.isApiKeyReady} />
 
         <div className="flex items-center space-x-reverse space-x-2">
             <input type="file" ref={logic.fileInputRef} onChange={logic.handleFileChange} accept="image/*,application/pdf" className="hidden" />
@@ -115,69 +126,9 @@ const ShariaPage: React.FC<ShariaPageProps> = ({ caseId }) => {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
             </button>
         </div>
+        </div>
     </div>
     );
 };
 
 export default ShariaPage;
-
-interface CustomChainPanelProps {
-    onRun: (chain: ActionMode[]) => void;
-    disabled: boolean;
-}
-
-const MODE_LABELS: Record<ActionMode, string> = {
-    analysis: 'تحليل', loopholes: 'كشف الثغرات', drafting: 'الصائغ القانوني', strategy: 'المايسترو الاستراتيجي', research: 'المحقق', interrogator: 'المستجوب', verifier: 'المدقق', citation_builder: 'مراجع حرفية', registrar: 'التسجيل العقاري', sharia_advisor: 'المرشد الشرعي', reconciliation: 'الصلح', custody: 'الحضانة', alimony: 'النفقة'
-};
-
-const CustomChainPanel: React.FC<CustomChainPanelProps> = ({ onRun, disabled }) => {
-    const [items, setItems] = useState<{ mode: ActionMode; enabled: boolean }[]>([
-        { mode: 'interrogator', enabled: true },
-        { mode: 'research', enabled: true },
-        { mode: 'citation_builder', enabled: true },
-        { mode: 'verifier', enabled: true },
-        { mode: 'drafting', enabled: true },
-        { mode: 'strategy', enabled: true },
-    ]);
-
-    const moveUp = (idx: number) => {
-        if (idx === 0) return;
-        const arr = [...items];
-        [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-        setItems(arr);
-    };
-    const moveDown = (idx: number) => {
-        if (idx === items.length - 1) return;
-        const arr = [...items];
-        [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
-        setItems(arr);
-    };
-    const toggle = (idx: number) => {
-        const arr = [...items];
-        arr[idx] = { ...arr[idx], enabled: !arr[idx].enabled };
-        setItems(arr);
-    };
-    const run = () => {
-        const chain = items.filter(i => i.enabled).map(i => i.mode);
-        onRun(chain);
-    };
-
-    return (
-        <div className="mt-3 bg-gray-900/50 border border-gray-700 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-gray-200">السلسلة المخصصة</h3>
-                <button onClick={run} disabled={disabled} className="px-3 py-1.5 bg-purple-700 text-gray-100 rounded-md text-sm hover:bg-purple-600 disabled:opacity-50">تشغيل السلسلة المخصصة</button>
-            </div>
-            <div className="space-y-2">
-                {items.map((item, idx) => (
-                    <div key={item.mode} className="flex items-center gap-2">
-                        <input type="checkbox" checked={item.enabled} onChange={() => toggle(idx)} />
-                        <span className="flex-1 text-sm text-gray-300">{MODE_LABELS[item.mode]}</span>
-                        <button onClick={() => moveUp(idx)} disabled={idx === 0} className="px-2 py-1 bg-gray-700 text-gray-200 rounded disabled:opacity-50">↑</button>
-                        <button onClick={() => moveDown(idx)} disabled={idx === items.length - 1} className="px-2 py-1 bg-gray-700 text-gray-200 rounded disabled:opacity-50">↓</button>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
