@@ -8,7 +8,7 @@ export const getBaseInstruction = (region: LegalRegion, caseType: CaseType) => {
 
     let legalContext = "";
     let jurisdictionGuard = "";
-    
+
     // --- SEARCH STRATEGY CONFIGURATION ---
 
     // 1. The Golden List (Official Sources - Priority #1)
@@ -26,17 +26,17 @@ export const getBaseInstruction = (region: LegalRegion, caseType: CaseType) => {
 
     // 2. The Blacklist (Explicitly forbidden to prevent confusion)
     const forbiddenDomains = [
-        "aliftaa.jo", "islamweb.net", "islamway.net", "almeezan.qa", "binbaz.org.sa", 
-        "mawdoo3.com", "kolzchut.org.il", "wikipedia.org", "wadaq.info", "cawtar.org", 
+        "aliftaa.jo", "islamweb.net", "islamway.net", "almeezan.qa", "binbaz.org.sa",
+        "mawdoo3.com", "kolzchut.org.il", "wikipedia.org", "wadaq.info", "cawtar.org",
         "alhaya.ps", "ahlamountada.com" // General sites that appeared in previous errors
     ].join(", ");
 
     if (isSharia) {
         // SHARIA CONTEXT
-        const shariaLaw = region === 'gaza' 
-            ? "قانون حقوق العائلة رقم (303) لسنة 1954 (المطبق في غزة) والقرارات بقانون المعدلة له" 
+        const shariaLaw = region === 'gaza'
+            ? "قانون حقوق العائلة رقم (303) لسنة 1954 (المطبق في غزة) والقرارات بقانون المعدلة له"
             : "قانون الأحوال الشخصية الأردني رقم (61) لسنة 1976 (المطبق في الضفة الغربية) والقرارات بقانون المعدلة له";
-        
+
         legalContext = `
 **المرجعية الإلزامية:** القضاء الشرعي الفلسطيني في ${regionName}.
 **القانون الأساسي:** ${shariaLaw}.
@@ -63,12 +63,12 @@ export const getBaseInstruction = (region: LegalRegion, caseType: CaseType) => {
 
     } else {
         // CIVIL CONTEXT
-        const civilSpecifics = region === 'gaza' 
+        const civilSpecifics = region === 'gaza'
             ? `
     1. **القانون المدني:** المرجع الأساسي هو **القانون المدني المصري رقم (131) لسنة 1948**.
     2. **قانون الإيجارات:** قانون إيجار العقارات المصري رقم (20) لسنة 1960.
     3. **أصول المحاكمات:** قانون أصول المحاكمات الحقوقية رقم 2 لسنة 2001.
-    ` 
+    `
             : `
     1. **القانون المدني:** المرجع الأساسي هو **القانون المدني الأردني رقم (43) لسنة 1976**.
     2. **قانون الإيجارات:** قرار بقانون رقم (14) لسنة 2011 بشأن المالكين والمستأجرين.
@@ -125,6 +125,13 @@ ${legalContext}
 4.  **التدقيق التلقائي:**
     *   قبل اعتماد أي مادة، تحقق: هل هي سارية في ${regionName}؟ هل صدر قرار بقانون عدله؟
 
+    5.  **فلتر النطاقات الصارم (Strict Domain Filter):**
+    *   عند استخدام أداة البحث Google Search، **يجب** عليك التحقق من رابط كل نتيجة.
+    *   **اقبل فقط:** النطاقات التي تنتهي بـ \`.ps\` أو \`birzeit.edu\` أو \`qou.edu\`.
+    *   **ارفض فوراً وتجاهل:** أي رابط ينتهي بـ \`.il\` (إسرائيلي)، \`.jo\` (أردني)، \`.sa\` (سعودي)، \`.qa\` (قطري)، \`.eg\` (مصري).
+    *   حتى لو كان القانون الأردني سارياً (مثل قانون الأحوال الشخصية 1976)، ابحث عن نصه في موقع فلسطيني (المقتفي/birzeit) ولا تستشهد بموقع أردني.
+    *   إذا لم تجد مصدراً فلسطينياً، قل: "لم أجد مصدراً فلسطينياً رسمياً لهذا النص" ولا تجلب بديلاً أجنبياً.
+
 هدفنا: دقة قانونية متناهية، ومصادر فلسطينية بحتة.`;
 };
 
@@ -138,7 +145,7 @@ export const getInstruction = (mode: ActionMode, region: LegalRegion, caseType: 
             return `${base}
 **الوضع الحالي: المصلح الأسري (The Mediator)**
 استخدم معرفتك القانونية للصلح وليس للنزاع. استشهد بالآيات القرآنية وأصول التحكيم (فابعثوا حكماً من أهله).`;
-        
+
         case 'custody':
             return `${base}
 **الوضع الحالي: خبير الحضانة (Custody Expert)**
@@ -155,14 +162,14 @@ export const getInstruction = (mode: ActionMode, region: LegalRegion, caseType: 
 قدم الفتوى والرأي القانوني الموثق في مسائل الزواج والطلاق والنسب. تأكد من وقوع الطلاق من عدمه حسب قانون الأحوال الشخصية الساري.`;
 
         // --- Shared Modes (Context Aware) ---
-        
+
         case 'drafting':
             return `${base}
 **الوضع الحالي: الصائغ القانوني (${isSharia ? 'للمحاكم الشرعية' : 'للمحاكم النظامية'})**
 مهمتك: كتابة وثيقة رسمية.
 **قبل الكتابة:** تحقق من المواد القانونية التي ستستند إليها. لا تكتب مادة ملغاة في لائحة دعوى!
 النمط: ${isSharia ? 'دعوى شرعية / حجة (بسم الله الرحمن الرحيم - لدى محكمة ... الشرعية)' : 'دعوى مدنية (باسم الشعب العربي الفلسطيني - لدى محكمة ...)'}.`;
-        
+
         case 'strategy':
             return `${base}
 **الوضع الحالي: المايسترو الاستراتيجي**
