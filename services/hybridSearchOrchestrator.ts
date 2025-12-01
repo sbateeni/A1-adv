@@ -2,6 +2,7 @@
 import { searchWeb, storeKnowledgeChunk, searchKnowledgeChunks } from './backendApi';
 import { fetchFullContent } from './jinaReaderService';
 import { generateEmbedding } from '../pages/geminiService';
+import * as dbService from './dbService';
 
 export interface SearchResult {
     title: string;
@@ -37,10 +38,18 @@ export async function performHybridSearch(query: string): Promise<HybridContext 
     const needsWebSearch = memoryResults.length < 2;
 
     if (needsWebSearch) {
-        console.log("🌐 Searching web for additional context...");
+        console.log("🌐 Searching web with Gemini Grounding...");
 
-        // Search via backend (no API keys needed on client)
-        const webResults = await searchWeb(query);
+        // Get user's Gemini API key
+        const geminiApiKey = await dbService.getSetting<string>('geminiApiKey');
+
+        if (!geminiApiKey) {
+            console.log("⚠️ Gemini API key not found");
+            return allSources.length > 0 ? formatContext(allSources) : null;
+        }
+
+        // Search via backend using Gemini Grounding (FREE!)
+        const webResults = await searchWeb(query, geminiApiKey);
 
         if (webResults.length > 0) {
             // Deduplicate by URL

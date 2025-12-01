@@ -1,58 +1,83 @@
 import express from 'express';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const router = express.Router();
 
-const GOOGLE_SEARCH_API_URL = 'https://www.googleapis.com/customsearch/v1';
-
 /**
  * POST /api/search
- * Search legal sources using Google Custom Search
+ * Search using Gemini with Google Search Grounding (FREE!)
  */
 router.post('/', async (req, res) => {
     try {
-        const { query } = req.body;
+        const { query, geminiApiKey } = req.body;
 
         if (!query || typeof query !== 'string') {
             return res.status(400).json({ error: 'Query is required' });
         }
 
-        const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
-        const cx = process.env.GOOGLE_SEARCH_CX;
-
-        if (!apiKey || !cx) {
-            return res.status(500).json({
-                error: 'Google Search API not configured on server'
+        if (!geminiApiKey) {
+            return res.status(400).json({
+                error: 'Gemini API key is required (sent from client)'
             });
         }
 
-        const url = new URL(GOOGLE_SEARCH_API_URL);
-        url.searchParams.append('key', apiKey);
-        url.searchParams.append('cx', cx);
-        url.searchParams.append('q', query);
+        console.log('🔍 Searching with Gemini Grounding:', query);
 
-        const response = await fetch(url.toString());
+        const genAI = new GoogleGenerativeAI(geminiApiKey);
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash-exp",
+            tools: [{
+                googleSearch: {}  // Enable Google Search grounding
+            }]
+        });
 
-        if (!response.ok) {
-            throw new Error(`Google Search API error: ${response.statusText}`);
+        const result = await model.generateContent({
+            contents: [{
+                role: 'user',
+                parts: [{
+                    text: `ابحث في الإنترنت عن معلومات قانونية فلسطينية حول: ${query}\n\nقدم 3-5 مصادر موثوقة مع روابطها المباشرة.`
+                }]
+            }],
+            generationConfig: {
+                temperature: 0.3,
+            }
+        });
+
+        const response = result.response;
+        const text = response.text();
+
+        // Extract grounding metadata (sources from Google Search)
+        const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+        let results = [];
+
+        if (groundingMetadata?.groundingChunks) {
+            results = groundingMetadata.groundingChunks
+                .filter(chunk => chunk.web?.uri)
+                .map(chunk => ({
+                    title: chunk.web.title || 'مصدر قانوني',
+                    link: chunk.web.uri,
+                    snippet: text.substring(0, 300),
+                    source: new URL(chunk.web.uri).hostname
+                }));
+
+            console.log(`✅ Found ${results.length} sources via Gemini Grounding`);
+        } else {
+            // Fallback: extract URLs from response
+            const urlRegex = /https?:\/\/[^\s]+/g;
+            const urls = text.match(urlRegex) || [];
+
+            results = urls.slice(0, 3).map(url => ({
+                title: 'مصدر قانوني',
+                link: url,
+                snippet: text.substring(0, 300),
+                source: new URL(url).hostname
+            }));
         }
 
-        const data = await response.json();
-
-        if (!data.items) {
-            return res.json({ results: [] });
-        }
-
-        const results = data.items.map(item => ({
-            title: item.title,
-            link: item.link,
-            snippet: item.snippet,
-            source: new URL(item.link).hostname
-        }));
-
-        res.json({ results });
+        res.json({ results, geminiResponse: text });
 
     } catch (error) {
-        console.error('Search error:', error);
+        console.error('Gemini search error:', error);
         res.status(500).json({
             error: 'Search failed',
             message: error.message

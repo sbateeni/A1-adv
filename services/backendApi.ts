@@ -25,14 +25,15 @@ export interface LawChunk {
 }
 
 /**
- * Search the web using Google Custom Search (via backend)
+ * Search the web using Gemini with Google Search Grounding (via backend)
+ * User's Gemini API key is sent to backend for search
  */
-export async function searchWeb(query: string): Promise<SearchResult[]> {
+export async function searchWeb(query: string, geminiApiKey: string): Promise<SearchResult[]> {
     try {
         const response = await fetch(`${API_URL}/api/search`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query })
+            body: JSON.stringify({ query, geminiApiKey })
         });
 
         if (!response.ok) {
