@@ -51,7 +51,7 @@ function chatHistoryToGeminiContents(history: ChatMessage[]): Content[] {
         if (msg.content) {
             parts.push({ text: msg.content });
         }
-        
+
         if (msg.images && msg.images.length > 0) {
             if (index === lastUserMessageIndex) {
                 msg.images.forEach(image => {
@@ -100,7 +100,7 @@ export async function proofreadTextWithGemini(textToProofread: string): Promise<
             model: model,
             contents: prompt,
         });
-        
+
         // Increment Request Count (1 request)
         dbService.incrementTokenUsage(1);
 
@@ -115,7 +115,7 @@ export async function summarizeChatHistory(history: ChatMessage[]): Promise<stri
     if (!history || history.length === 0) return "لا يوجد محتوى لتلخيصه.";
     try {
         const ai = await getGoogleGenAI();
-        const model = 'gemini-2.5-flash'; 
+        const model = 'gemini-2.5-flash';
         const contents = history.map(msg => ({
             role: msg.role,
             parts: [{ text: msg.content }]
@@ -140,96 +140,96 @@ export async function summarizeChatHistory(history: ChatMessage[]): Promise<stri
 }
 
 export async function* streamChatResponseFromGemini(
-  history: ChatMessage[],
-  thinkingMode: boolean,
-  actionMode: ActionMode,
-  region: LegalRegion,
-  caseType: CaseType,
-  signal: AbortSignal
+    history: ChatMessage[],
+    thinkingMode: boolean,
+    actionMode: ActionMode,
+    region: LegalRegion,
+    caseType: CaseType,
+    signal: AbortSignal
 ): AsyncGenerator<{ text: string; model: string; groundingMetadata?: GroundingMetadata }> {
-  try {
-    const ai = await getGoogleGenAI();
-    const model = thinkingMode ? 'gemini-3-pro-preview' : 'gemini-2.5-flash';
-    // Retrieve centralized instruction
-    const systemInstruction = getInstruction(actionMode, region, caseType);
-    
-    const historyToSend = history.slice(-MAX_HISTORY_MESSAGES);
-    const contents = chatHistoryToGeminiContents(historyToSend);
-    const tools = [{ googleSearch: {} }];
-    const config: any = {
-        systemInstruction: systemInstruction,
-        tools: tools,
-        maxOutputTokens: MAX_OUTPUT_TOKENS_FLASH,
-    };
-    if (thinkingMode) {
-        config.thinkingConfig = { thinkingBudget: THINKING_BUDGET_PRO };
-        config.maxOutputTokens = Math.max(MAX_OUTPUT_TOKENS_FLASH, THINKING_BUDGET_PRO + 4000);
+    try {
+        const ai = await getGoogleGenAI();
+        const model = thinkingMode ? 'gemini-3-pro-preview' : 'gemini-2.5-flash';
+        // Retrieve centralized instruction
+        const systemInstruction = getInstruction(actionMode, region, caseType);
+
+        const historyToSend = history.slice(-MAX_HISTORY_MESSAGES);
+        const contents = chatHistoryToGeminiContents(historyToSend);
+        const tools = [{ googleSearch: {} }];
+        const config: any = {
+            systemInstruction: systemInstruction,
+            tools: tools,
+            maxOutputTokens: MAX_OUTPUT_TOKENS_FLASH,
+        };
+        if (thinkingMode) {
+            config.thinkingConfig = { thinkingBudget: THINKING_BUDGET_PRO };
+            config.maxOutputTokens = Math.max(MAX_OUTPUT_TOKENS_FLASH, THINKING_BUDGET_PRO + 4000);
+        }
+        const response = await ai.models.generateContentStream({
+            model: model,
+            contents: contents,
+            config: config
+        });
+
+        let requestCounted = false;
+
+        for await (const chunk of response) {
+            if (signal.aborted) break;
+            const text = chunk.text;
+            let groundingMetadata: GroundingMetadata | undefined;
+            if (chunk.candidates && chunk.candidates[0]?.groundingMetadata) {
+                groundingMetadata = chunk.candidates[0].groundingMetadata as unknown as GroundingMetadata;
+            }
+
+            if (!requestCounted) {
+                // Count 1 request as soon as we start getting chunks
+                dbService.incrementTokenUsage(1);
+                requestCounted = true;
+            }
+
+            if (text || groundingMetadata) {
+                yield { text, model, groundingMetadata };
+            }
+        }
+
+    } catch (error) {
+        if (signal.aborted) return;
+        console.error("Error in Gemini chat stream:", error);
+        throw error;
     }
-    const response = await ai.models.generateContentStream({
-        model: model,
-        contents: contents,
-        config: config
-    });
-    
-    let requestCounted = false;
-
-    for await (const chunk of response) {
-        if (signal.aborted) break;
-        const text = chunk.text;
-        let groundingMetadata: GroundingMetadata | undefined;
-        if (chunk.candidates && chunk.candidates[0]?.groundingMetadata) {
-            groundingMetadata = chunk.candidates[0].groundingMetadata as unknown as GroundingMetadata;
-        }
-        
-        if (!requestCounted) {
-            // Count 1 request as soon as we start getting chunks
-            dbService.incrementTokenUsage(1);
-            requestCounted = true;
-        }
-
-        if (text || groundingMetadata) {
-            yield { text, model, groundingMetadata };
-        }
-    }
-
-  } catch (error) {
-    if (signal.aborted) return;
-    console.error("Error in Gemini chat stream:", error);
-    throw error;
-  }
 }
 
 export async function analyzeImageWithGemini(
-  base64ImageDataUrl: string,
-  mimeType: string,
-  prompt: string
+    base64ImageDataUrl: string,
+    mimeType: string,
+    prompt: string
 ): Promise<string> {
-  if (!base64ImageDataUrl || !mimeType) throw new Error("Image data and mime type are required.");
-  try {
-    const ai = await getGoogleGenAI();
-    const model = 'gemini-2.5-flash';
-    const base64Data = base64ImageDataUrl.split(',')[1];
-    const imagePart = {
-      inlineData: { data: base64Data, mimeType: mimeType }
-    };
-    const textPart = { text: prompt };
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: { parts: [imagePart, textPart] },
-        config: {
-             systemInstruction: "أنت محلل صور قانوني ومستندي. دورك هو استخراج المعلومات بدقة.",
-             maxOutputTokens: 4000,
-        }
-    });
+    if (!base64ImageDataUrl || !mimeType) throw new Error("Image data and mime type are required.");
+    try {
+        const ai = await getGoogleGenAI();
+        const model = 'gemini-2.5-flash';
+        const base64Data = base64ImageDataUrl.split(',')[1];
+        const imagePart = {
+            inlineData: { data: base64Data, mimeType: mimeType }
+        };
+        const textPart = { text: prompt };
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: { parts: [imagePart, textPart] },
+            config: {
+                systemInstruction: "أنت محلل صور قانوني ومستندي. دورك هو استخراج المعلومات بدقة.",
+                maxOutputTokens: 4000,
+            }
+        });
 
-    // Increment Request Count (1 request)
-    dbService.incrementTokenUsage(1);
+        // Increment Request Count (1 request)
+        dbService.incrementTokenUsage(1);
 
-    return response.text || "لم يتم إنشاء أي نص.";
-  } catch (error) {
-    console.error("Error analyzing image with Gemini:", error);
-    throw error;
-  }
+        return response.text || "لم يتم إنشاء أي نص.";
+    } catch (error) {
+        console.error("Error analyzing image with Gemini:", error);
+        throw error;
+    }
 }
 
 export async function extractInheritanceFromCase(caseText: string): Promise<Partial<InheritanceInput>> {
@@ -239,7 +239,7 @@ export async function extractInheritanceFromCase(caseText: string): Promise<Part
 
         // Use centralized inheritance prompt
         const prompt = getInheritanceExtractionPrompt(caseText);
-        
+
         const schema: Schema = {
             type: Type.OBJECT,
             properties: {
@@ -287,8 +287,8 @@ export async function extractInheritanceFromCase(caseText: string): Promise<Part
 
         const jsonText = response.text;
         if (!jsonText) throw new Error("No JSON returned");
-        
-        
+
+
         return JSON.parse(jsonText);
     } catch (error) {
         console.error("Inheritance Extraction Error:", error);
@@ -303,13 +303,13 @@ export async function generateEmbedding(text: string): Promise<number[]> {
         const model = "text-embedding-004";
         const result = await ai.models.embedContent({
             model: model,
-            content: { parts: [{ text }] }
+            contents: { parts: [{ text }] }
         });
 
         // Increment Request Count (1 request)
         dbService.incrementTokenUsage(1);
 
-        return result.embedding?.values || [];
+        return result.embeddings?.[0]?.values || [];
     } catch (error) {
         console.error("Error generating embedding:", error);
         return [];

@@ -13,9 +13,7 @@ const SettingsPage: React.FC = () => {
         openRouterInputValue, setOpenRouterInputValue, handleSaveOpenRouterKey, openRouterSaved,
         openRouterModelId, handleModelChange, openRouterModels,
         newModelId, setNewModelId, newModelSupportsImages, setNewModelSupportsImages, handleAddModel, handleDeleteModel,
-        casesCount, handleClearCases, handleExport, handleImportClick, handleFileChange, fileInputRef,
-        googleSearchApiKey, setGoogleSearchApiKey, googleSearchCx, setGoogleSearchCx, handleSaveSearchSettings, googleSearchSaved,
-        supabaseUrl, setSupabaseUrl, supabaseKey, setSupabaseKey, handleSaveSupabaseSettings, supabaseSaved
+        casesCount, handleClearCases, handleExport, handleImportClick, handleFileChange, fileInputRef
     } = useSettingsLogic();
 
     return (
@@ -33,8 +31,6 @@ const SettingsPage: React.FC = () => {
                 openRouterInputValue={openRouterInputValue} setOpenRouterInputValue={setOpenRouterInputValue} handleSaveOpenRouterKey={handleSaveOpenRouterKey} openRouterSaved={openRouterSaved}
                 openRouterModelId={openRouterModelId} handleModelChange={handleModelChange} openRouterModels={openRouterModels}
                 newModelId={newModelId} setNewModelId={setNewModelId} newModelSupportsImages={newModelSupportsImages} setNewModelSupportsImages={setNewModelSupportsImages} handleAddModel={handleAddModel} handleDeleteModel={handleDeleteModel}
-                googleSearchApiKey={googleSearchApiKey} setGoogleSearchApiKey={setGoogleSearchApiKey} googleSearchCx={googleSearchCx} setGoogleSearchCx={setGoogleSearchCx} handleSaveSearchSettings={handleSaveSearchSettings} googleSearchSaved={googleSearchSaved}
-                supabaseUrl={supabaseUrl} setSupabaseUrl={setSupabaseUrl} supabaseKey={supabaseKey} setSupabaseKey={setSupabaseKey} handleSaveSupabaseSettings={handleSaveSupabaseSettings} supabaseSaved={supabaseSaved}
             />
 
             <DataManagement

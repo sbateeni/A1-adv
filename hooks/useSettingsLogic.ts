@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ApiSource, Case, OpenRouterModel, LegalRegion } from '../types';
 import * as dbService from '../services/dbService';
 import { DEFAULT_OPENROUTER_MODELS } from '../constants';
+import { initSupabase } from '../services/knowledgeBaseService';
 
 export const useSettingsLogic = () => {
     const [apiSource, setApiSource] = useState<ApiSource>('gemini');
@@ -80,6 +81,12 @@ export const useSettingsLogic = () => {
             const storedSupabaseKey = await dbService.getSetting<string>('supabaseKey');
             if (storedSupabaseKey) setSupabaseKey(storedSupabaseKey);
 
+            // Initialize Supabase client if credentials exist
+            if (storedSupabaseUrl && storedSupabaseKey) {
+                initSupabase(storedSupabaseUrl, storedSupabaseKey);
+                console.log('✅ Supabase initialized from settings');
+            }
+
             const allCases = await dbService.getAllCases();
             setCasesCount(allCases.length);
         };
@@ -121,6 +128,13 @@ export const useSettingsLogic = () => {
     const handleSaveSupabaseSettings = async () => {
         await dbService.setSetting({ key: 'supabaseUrl', value: supabaseUrl.trim() });
         await dbService.setSetting({ key: 'supabaseKey', value: supabaseKey.trim() });
+
+        // Initialize Supabase client immediately after saving
+        if (supabaseUrl.trim() && supabaseKey.trim()) {
+            initSupabase(supabaseUrl.trim(), supabaseKey.trim());
+            console.log('✅ Supabase re-initialized with new credentials');
+        }
+
         setSupabaseSaved(true);
         setTimeout(() => setSupabaseSaved(false), 3000);
     };
@@ -223,6 +237,18 @@ export const useSettingsLogic = () => {
         event.target.value = '';
     };
 
+    const handleClearKnowledgeBase = async () => {
+        if (window.confirm("هل أنت متأكد من حذف جميع محتويات قاعدة المعرفة؟ هذا الإجراء لا يمكن التراجع عنه.")) {
+            const { clearAllChunks } = await import('../services/knowledgeBaseService');
+            const success = await clearAllChunks();
+            if (success) {
+                alert("تم مسح قاعدة المعرفة بنجاح!");
+            } else {
+                alert("فشل في مسح قاعدة المعرفة. تأكد من إعدادات Supabase.");
+            }
+        }
+    };
+
     return {
         apiSource, handleApiSourceChange,
         region, handleRegionChange,
@@ -232,6 +258,7 @@ export const useSettingsLogic = () => {
         newModelId, setNewModelId, newModelSupportsImages, setNewModelSupportsImages, handleAddModel, handleDeleteModel,
         casesCount, handleClearCases, handleExport, handleImportClick, handleFileChange, fileInputRef,
         googleSearchApiKey, setGoogleSearchApiKey, googleSearchCx, setGoogleSearchCx, handleSaveSearchSettings, googleSearchSaved,
-        supabaseUrl, setSupabaseUrl, supabaseKey, setSupabaseKey, handleSaveSupabaseSettings, supabaseSaved
+        supabaseUrl, setSupabaseUrl, supabaseKey, setSupabaseKey, handleSaveSupabaseSettings, supabaseSaved,
+        handleClearKnowledgeBase
     };
 };
